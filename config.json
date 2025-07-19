@@ -1,0 +1,68 @@
+{
+  "benchmark_settings": {
+    "num_games": 10,
+    "parallel_games": 1,
+    "save_game_logs": true,
+    "output_directory": "benchmark_results"
+  },
+  
+  "game_variations": [
+    {
+      "name": "standard_6_player",
+      "num_players": 6,
+      "num_killers": 2,
+      "enable_special_roles": false,
+      "weight": 0.4
+    },
+    {
+      "name": "large_game",
+      "num_players": 10,
+      "num_killers": 3,
+      "enable_special_roles": true,
+      "weight": 0.3
+    },
+    {
+      "name": "detective_game",
+      "num_players": 7,
+      "num_killers": 2,
+      "enable_special_roles": true,
+      "special_roles": ["detective"],
+      "weight": 0.3
+    }
+  ],
+  
+  "model_pool": {
+    "claude-3-opus": {
+      "weight": 0.25,
+      "temperature": 0.7,
+      "max_tokens": 500
+    },
+    "gpt-4-turbo": {
+      "weight": 0.25,
+      "temperature": 0.7,
+      "max_tokens": 500
+    },
+    "claude-3-sonnet": {
+      "weight": 0.2,
+      "temperature": 0.8,
+      "max_tokens": 400
+    },
+    "gpt-3.5-turbo": {
+      "weight": 0.2,
+      "temperature": 0.8,
+      "max_tokens": 400
+    },
+    "gemini-pro": {
+      "weight": 0.1,
+      "temperature": 0.7,
+      "max_tokens": 500
+    }
+  },
+  
+  "evaluation_settings": {
+    "track_conversation_quality": true,
+    "analyze_voting_patterns": true,
+    "identify_emergent_strategies": true,
+    "generate_visualizations": true
+  }
+}
