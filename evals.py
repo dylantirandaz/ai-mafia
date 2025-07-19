@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Tuple, Any, Optional
 import matplotlib
-matplotlib.use("Agg")   # <-- use the headless PNG backend
+matplotlib.use("Agg")   
 import matplotlib.pyplot as plt
 import seaborn as sns
 from dataclasses import dataclass, field
@@ -32,8 +32,8 @@ class PlayerMetrics:
     survival_rate: float = 0.0
     correct_votes: int = 0
     total_votes: int = 0
-    deception_success: int = 0  # Times avoided detection as killer
-    detection_success: int = 0  # Times correctly identified killer
+    deception_success: int = 0  
+    detection_success: int = 0 
     
     def update_win_rate(self):
         self.win_rate = self.wins / self.games_played if self.games_played > 0 else 0
@@ -47,7 +47,7 @@ class GameMetrics:
     game_id: str
     timestamp: datetime
     rounds: int
-    winner: str  # "killers" or "innocents"
+    winner: str 
     player_roles: Dict[str, str]
     player_models: Dict[str, str]
     final_survivors: List[str]
@@ -86,7 +86,6 @@ class DiscussionAnalyzer:
             "role": player_role
         }
         
-        # Special scoring for killers trying to blend in
         if player_role == "killer":
             analysis["blending_score"] = analysis["accusation_score"] - analysis["defense_score"]
         
@@ -104,7 +103,6 @@ class DiscussionAnalyzer:
             analysis = self.analyze_message(msg["message"], role)
             player_analyses[player].append(analysis)
         
-        # Aggregate metrics
         phase_metrics = {}
         
         for player, analyses in player_analyses.items():
@@ -138,14 +136,12 @@ class VotingAnalyzer:
             "accuracy_by_role": {}
         }
         
-        # Calculate accuracy
         if eliminated and eliminated in player_roles:
             eliminated_role = player_roles[eliminated]
             
             for voter, target in votes.items():
                 voter_role = player_roles.get(voter, "unknown")
                 
-                # Correct vote logic
                 correct = False
                 if voter_role in ["innocent", "detective", "doctor"]:
                     correct = eliminated_role == "killer"
@@ -166,7 +162,6 @@ class VotingAnalyzer:
         for voter, target in votes.items():
             vote_groups[target].append(voter)
         
-        # Return groups with more than 1 voter
         return [group for group in vote_groups.values() if len(group) > 1]
 
 class ModelEvaluator:
@@ -190,13 +185,11 @@ class ModelEvaluator:
         
         game_id = f"game_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        # Extract game data
         winner = game_result["winner"]
         rounds = game_result["rounds_played"]
         final_survivors = game_result["final_survivors"]
         player_roles = game_result["role_distribution"]
         
-        # Create game metrics
         game_metric = GameMetrics(
             game_id=game_id,
             timestamp=datetime.now(),
@@ -208,7 +201,6 @@ class ModelEvaluator:
             voting_patterns=[]
         )
         
-        # Process game log
         discussion_messages = []
         voting_rounds = []
         
@@ -218,14 +210,12 @@ class ModelEvaluator:
             elif event["event_type"] == "voting_phase_complete":
                 voting_rounds.append(event["data"])
         
-        # Analyze discussions
         if discussion_messages:
             discussion_metrics = self.discussion_analyzer.analyze_discussion_phase(
                 discussion_messages, player_roles
             )
             game_metric.discussion_quality = discussion_metrics
         
-        # Analyze voting
         for voting_round in voting_rounds:
             vote_analysis = self.voting_analyzer.analyze_voting_round(
                 voting_round["votes"],
@@ -234,13 +224,10 @@ class ModelEvaluator:
             )
             game_metric.voting_patterns.append(vote_analysis)
         
-        # Update player metrics
         self._update_player_metrics(game_metric, winner)
         
-        # Store game metrics
         self.game_metrics.append(game_metric)
         
-        # Update model comparisons
         self._update_model_comparisons(game_metric)
     
     def _update_player_metrics(self, game_metric: GameMetrics, winner: str):
@@ -249,7 +236,6 @@ class ModelEvaluator:
         for player_id, role in game_metric.player_roles.items():
             model = game_metric.player_models[player_id]
             
-            # Create player metric if not exists
             if player_id not in self.player_metrics:
                 self.player_metrics[player_id] = PlayerMetrics(
                     player_id=player_id,
@@ -259,7 +245,6 @@ class ModelEvaluator:
             pm = self.player_metrics[player_id]
             pm.games_played += 1
             
-            # Role-specific metrics
             if role == "killer":
                 pm.games_as_killer += 1
                 if winner == "killers":
@@ -271,13 +256,12 @@ class ModelEvaluator:
                     pm.wins += 1
                     pm.wins_as_innocent += 1
             
-            # Survival
+             
             if player_id in game_metric.final_survivors:
                 pm.survival_rate = (pm.survival_rate * (pm.games_played - 1) + 1) / pm.games_played
             else:
                 pm.survival_rate = (pm.survival_rate * (pm.games_played - 1)) / pm.games_played
             
-            # Voting accuracy
             for voting_round in game_metric.voting_patterns:
                 role_accuracy = voting_round.get("accuracy_by_role", {}).get(role, [])
                 pm.correct_votes += sum(role_accuracy)
@@ -304,7 +288,6 @@ class ModelEvaluator:
             mc = self.model_comparisons[model]
             mc["games"] += 1
             
-            # Count wins for this model
             model_players = [p for p, m in game_metric.player_models.items() if m == model]
             model_won = False
             
@@ -321,7 +304,6 @@ class ModelEvaluator:
             if model_won:
                 mc["wins"] += 1
             
-            # Discussion engagement
             total_messages = sum(
                 game_metric.discussion_quality.get(p, {}).get("total_messages", 0)
                 for p in model_players
@@ -344,7 +326,6 @@ class ModelEvaluator:
             "interesting_games": []
         }
         
-        # Model performance
         for model, stats in self.model_comparisons.items():
             report["model_performance"][model] = {
                 "win_rate": stats["wins"] / stats["games"] if stats["games"] > 0 else 0,
@@ -353,10 +334,8 @@ class ModelEvaluator:
                 "avg_discussion_engagement": stats["discussion_engagement"] / stats["games"] if stats["games"] > 0 else 0
             }
         
-        # Behavioral patterns
         report["behavioral_patterns"] = self._analyze_behavioral_patterns()
         
-        # Identify interesting games
         report["interesting_games"] = self._identify_interesting_games()
         
         return report
@@ -370,7 +349,6 @@ class ModelEvaluator:
             "discussion_patterns": {}
         }
         
-        # Analyze deception strategies by killers
         killer_messages = []
         for game in self.game_metrics:
             for player, role in game.player_roles.items():
@@ -381,7 +359,6 @@ class ModelEvaluator:
                         "metrics": game.discussion_quality[player]
                     })
         
-        # Group by model
         model_deception = defaultdict(list)
         for msg in killer_messages:
             model_deception[msg["model"]].append(msg["metrics"])
@@ -401,25 +378,22 @@ class ModelEvaluator:
         
         interesting = []
         
-        for game in self.game_metrics[-10:]:  # Last 10 games
+        for game in self.game_metrics[-10:]:  
             interest_score = 0
             reasons = []
             
-            # Long games are interesting
             if game.rounds > np.mean([g.rounds for g in self.game_metrics]) + np.std([g.rounds for g in self.game_metrics]):
                 interest_score += 2
                 reasons.append("unusually_long_game")
             
-            # Games with voting coalitions
             for voting in game.voting_patterns:
                 if len(voting.get("voting_blocks", [])) > 0:
                     interest_score += 1
                     reasons.append("voting_coalitions_formed")
                     break
             
-            # High discussion engagement
             total_messages = sum(dq.get("total_messages", 0) for dq in game.discussion_quality.values())
-            if total_messages > 50:  # Threshold
+            if total_messages > 50:
                 interest_score += 1
                 reasons.append("high_discussion_activity")
             
@@ -437,28 +411,23 @@ class ModelEvaluator:
     def save_results(self):
         """Save evaluation results to disk"""
         
-        # Save raw data
         with open(self.output_dir / "game_metrics.pkl", "wb") as f:
             pickle.dump(self.game_metrics, f)
         
         with open(self.output_dir / "player_metrics.pkl", "wb") as f:
             pickle.dump(self.player_metrics, f)
         
-        # Save report
         report = self.generate_report(len(self.game_metrics))
         with open(self.output_dir / "evaluation_report.json", "w") as f:
             json.dump(report, f, indent=2, default=str)
         
-        # Generate visualizations
         self._generate_visualizations()
     
     def _generate_visualizations(self):
         """Generate charts and visualizations"""
         
-        # Model performance comparison
         fig, axes = plt.subplots(2, 2, figsize=(12, 10))
         
-        # Win rates by model
         models = list(self.model_comparisons.keys())
         win_rates = [self.model_comparisons[m]["wins"] / self.model_comparisons[m]["games"] 
                     for m in models]
@@ -468,7 +437,6 @@ class ModelEvaluator:
         axes[0, 0].set_ylabel("Win Rate")
         axes[0, 0].set_ylim(0, 1)
         
-        # Role performance
         killer_rates = [self.model_comparisons[m]["wins_as_killer"] / max(self.model_comparisons[m]["games"], 1)
                        for m in models]
         innocent_rates = [self.model_comparisons[m]["wins_as_innocent"] / max(self.model_comparisons[m]["games"], 1)
@@ -485,14 +453,12 @@ class ModelEvaluator:
         axes[0, 1].legend()
         axes[0, 1].set_ylim(0, 1)
         
-        # Game length distribution
         game_lengths = [gm.rounds for gm in self.game_metrics]
         axes[1, 0].hist(game_lengths, bins=10, edgecolor='black')
         axes[1, 0].set_title("Game Length Distribution")
         axes[1, 0].set_xlabel("Number of Rounds")
         axes[1, 0].set_ylabel("Frequency")
         
-        # Win distribution
         winner_counts = Counter(gm.winner for gm in self.game_metrics)
         axes[1, 1].pie(winner_counts.values(), labels=winner_counts.keys(), autopct='%1.1f%%')
         axes[1, 1].set_title("Win Distribution")
@@ -526,7 +492,6 @@ class MafiaBenchmarkRunner:
     async def run_single_game(self, game_config: Dict[str, Any]) -> Dict[str, Any]:
         """Run a single game with specified configuration"""
         
-        # Initialize game
         engine = MafiaGameEngine(
             num_players=game_config.get("num_players", 6),
             num_killers=game_config.get("num_killers", 2),
@@ -535,12 +500,10 @@ class MafiaBenchmarkRunner:
         
         engine.initialize_game()
         
-        # Assign models to players
         player_models = {}
         available_models = list(self.model_configs.keys())
         
         for player_id in engine.game_state.players.keys():
-            # Use specified assignment or random
             if player_id in game_config.get("model_assignments", {}):
                 model_name = game_config["model_assignments"][player_id]
             else:
@@ -556,11 +519,9 @@ class MafiaBenchmarkRunner:
                 engine.register_model_adapter(player_id, adapter)
                 player_models[player_id] = "gpt-3.5"
         
-        # Run game
         logger.info(f"Starting game with players: {player_models}")
         game_result = await engine.run_game()
         
-        # Process results
         self.evaluator.process_game(game_result, player_models, engine.game_log)
         
         return game_result
@@ -571,38 +532,31 @@ class MafiaBenchmarkRunner:
         
         logger.info(f"Starting benchmark with {num_games} games")
         
-        # Game configurations for variety
         game_configs = []
         for i in range(num_games):
             config = {
-                "num_players": 6 if i % 3 == 0 else 8,  # Vary player count
-                "num_killers": 2 if i % 2 == 0 else 1,  # Vary killer count
-                "enable_special_roles": i % 4 == 0,  # Sometimes use special roles
+                "num_players": 6 if i % 3 == 0 else 8,  
+                "num_killers": 2 if i % 2 == 0 else 1,  
+                "enable_special_roles": i % 4 == 0,  
                 "game_id": f"game_{i:04d}"
             }
             game_configs.append(config)
         
-        # Run games in batches
         for i in range(0, num_games, parallel_games):
             batch = game_configs[i:i + parallel_games]
             
-            # Run batch in parallel
             tasks = [self.run_single_game(config) for config in batch]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             
-            # Log progress
             completed = i + len(batch)
             logger.info(f"Progress: {completed}/{num_games} games completed")
             
-            # Handle any errors
             for j, result in enumerate(results):
                 if isinstance(result, Exception):
                     logger.error(f"Game {i+j} failed: {result}")
         
-        # Generate final report
         final_report = self.evaluator.generate_report(num_games)
         
-        # Save all results
         self.evaluator.save_results()
         
         logger.info("Benchmark completed!")
@@ -639,11 +593,9 @@ class MafiaBenchmarkRunner:
         
         moments = []
         
-        # Check each voting round
         for i, voting in enumerate(game.voting_patterns):
-            eliminated_player = None  # Would need to track this
+            eliminated_player = None  
             
-            # Check for close votes
             vote_dist = voting.get("vote_distribution", {})
             if vote_dist:
                 max_votes = max(vote_dist.values())
@@ -658,14 +610,11 @@ class MafiaBenchmarkRunner:
         
         return moments
 
-# Example usage and main execution
 async def main():
     """Example of running the benchmark"""
     
-    # Initialize benchmark runner
     runner = MafiaBenchmarkRunner()
     
-    # Configure for a small test run
     test_config = {
         "num_games": 10,
         "game_settings": {
@@ -675,13 +624,11 @@ async def main():
         }
     }
     
-    # Run benchmark
     report = await runner.run_benchmark(
         num_games=test_config["num_games"],
         parallel_games=2
     )
     
-    # Print summary
     print("\n=== BENCHMARK SUMMARY ===")
     print(f"Total games: {report['summary']['total_games']}")
     print(f"Average game length: {report['summary']['avg_rounds_per_game']:.1f} rounds")
@@ -705,11 +652,9 @@ async def main():
         print(f"  Winner: {game['winner']}")
 
 if __name__ == "__main__":
-    # Set up logging
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
     
-    # Run the benchmark
     asyncio.run(main())
