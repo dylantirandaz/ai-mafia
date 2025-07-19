@@ -9,15 +9,14 @@ from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 import logging
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class Role(Enum):
     INNOCENT = "innocent"
     KILLER = "killer"
-    DETECTIVE = "detective"  # Optional special role
-    DOCTOR = "doctor"  # Optional special role
+    DETECTIVE = "detective"  
+    DOCTOR = "doctor" 
 
 class Phase(Enum):
     NIGHT = "night"
@@ -163,17 +162,14 @@ Respond with JSON: {"action": "wait"}"""
                                model_type: str = "default") -> str:
         """Build prompt for discussion phase"""
         
-        # Get recent events
         events = []
         if game_state.last_killed:
             events.append(f"Killed last night: {', '.join(game_state.last_killed)}")
         if game_state.last_eliminated:
             events.append(f"Voted out last round: {', '.join(game_state.last_eliminated)}")
         
-        # Get discussion history (last 10 messages)
         recent_discussion = game_state.discussion_history[-10:] if game_state.discussion_history else []
         
-        # Model-specific formatting
         if model_type == "claude":
             prompt = f"""DISCUSSION PHASE - Round {game_state.round_number}
 
@@ -207,7 +203,7 @@ RECENT DISCUSSION:
 YOUR TASK: Write a strategic message (max 2 sentences) that helps your team win.
 If killer: Deflect suspicion. If innocent: Share suspicions or analysis."""
         
-        else:  # Default format
+        else:  
             prompt = f"""You are Player {player_id} in a Mafia game. Your secret role: {role.value}
 
 Game State:
@@ -228,7 +224,6 @@ Write a strategic message to influence the game in your favor:"""
         """Build prompt for voting phase"""
         alive_players = [p for p in game_state.get_alive_players() if p != player_id]
         
-        # Summarize discussion
         discussion_summary = []
         for msg in game_state.discussion_history[-15:]:
             if any(word in msg['message'].lower() for word in ['suspect', 'think', 'vote', 'killer', 'suspicious']):
@@ -274,13 +269,10 @@ class MafiaGameEngine:
         players = {}
         player_ids = [f"Player{i}" for i in range(1, self.num_players + 1)]
         
-        # Shuffle for random assignment
         random.shuffle(player_ids)
         
-        # Assign roles
         roles_assigned = 0
         
-        # Assign killers
         for i in range(self.num_killers):
             players[player_ids[roles_assigned]] = PlayerState(
                 player_id=player_ids[roles_assigned],
@@ -288,16 +280,13 @@ class MafiaGameEngine:
             )
             roles_assigned += 1
         
-        # Assign special roles if enabled
         if self.enable_special_roles and roles_assigned < len(player_ids) - 1:
-            # Detective
             players[player_ids[roles_assigned]] = PlayerState(
                 player_id=player_ids[roles_assigned],
                 role=Role.DETECTIVE
             )
             roles_assigned += 1
             
-            # Doctor (if enough players)
             if roles_assigned < len(player_ids) - 1:
                 players[player_ids[roles_assigned]] = PlayerState(
                     player_id=player_ids[roles_assigned],
@@ -305,7 +294,6 @@ class MafiaGameEngine:
                 )
                 roles_assigned += 1
         
-        # Rest are innocents
         for i in range(roles_assigned, len(player_ids)):
             players[player_ids[i]] = PlayerState(
                 player_id=player_ids[i],
@@ -335,7 +323,6 @@ class MafiaGameEngine:
         
         night_actions = {}
         
-        # Collect actions from all players with night abilities
         for player_id, player in self.game_state.players.items():
             if not player.alive:
                 continue
@@ -355,7 +342,6 @@ class MafiaGameEngine:
                     except Exception as e:
                         logger.error(f"Error getting action from {player_id}: {e}")
         
-        # Process actions
         results = self._process_night_actions(night_actions)
         
         self._log_event("night_phase_complete", {
@@ -374,7 +360,6 @@ class MafiaGameEngine:
         discussion_messages = []
         start_time = time.time()
         
-        # Multiple rounds of discussion within time limit
         while time.time() - start_time < duration_seconds:
             for player_id, player in self.game_state.players.items():
                 if not player.alive:
@@ -403,7 +388,6 @@ class MafiaGameEngine:
                     except Exception as e:
                         logger.error(f"Error getting discussion from {player_id}: {e}")
             
-            # Small delay between discussion rounds
             await asyncio.sleep(2)
         
         self._log_event("discussion_phase_complete", {
@@ -420,12 +404,10 @@ class MafiaGameEngine:
         
         votes = {}
         
-        # Reset previous votes
         for player in self.game_state.players.values():
             player.votes_received = 0
             player.voting_for = None
         
-        # Collect votes
         for player_id, player in self.game_state.players.items():
             if not player.alive:
                 continue
@@ -451,7 +433,6 @@ class MafiaGameEngine:
                 except Exception as e:
                     logger.error(f"Error getting vote from {player_id}: {e}")
         
-        # Tally votes and eliminate player with most votes
         elimination_result = self._process_votes(votes)
         
         self.voting_history.append({
@@ -509,7 +490,6 @@ class MafiaGameEngine:
             "investigations": {}
         }
         
-        # Process protections first
         for player_id, action in actions.items():
             if action.get("action") == "protect":
                 target = action.get("target")
@@ -517,7 +497,6 @@ class MafiaGameEngine:
                     self.game_state.players[target].protected = True
                     results["protected"].append(target)
         
-        # Process kills
         kill_targets = []
         for player_id, action in actions.items():
             if action.get("action") == "kill":
@@ -525,7 +504,6 @@ class MafiaGameEngine:
                 if target:
                     kill_targets.append(target)
         
-        # Apply kills (majority or random if tie)
         if kill_targets:
             from collections import Counter
             kill_counts = Counter(kill_targets)
@@ -539,7 +517,6 @@ class MafiaGameEngine:
                 results["killed"].append(final_target)
                 self.game_state.last_killed = [final_target]
         
-        # Process investigations
         for player_id, action in actions.items():
             if action.get("action") == "investigate":
                 target = action.get("target")
@@ -550,7 +527,6 @@ class MafiaGameEngine:
                     self.game_state.investigation_results[player_id].append((target, target_role))
                     results["investigations"][player_id] = (target, target_role.value)
         
-        # Reset protections
         for player in self.game_state.players.values():
             player.protected = False
         
@@ -561,7 +537,6 @@ class MafiaGameEngine:
         if not votes:
             return {"eliminated": None, "tie": True}
         
-        # Count votes
         from collections import Counter
         vote_counts = Counter(votes.values())
         
@@ -571,16 +546,13 @@ class MafiaGameEngine:
         max_votes = max(vote_counts.values())
         candidates = [player for player, count in vote_counts.items() if count == max_votes]
         
-        # Handle ties
         if len(candidates) > 1:
-            # Could implement tie-breaking rules here
             eliminated = random.choice(candidates)
             tie = True
         else:
             eliminated = candidates[0]
             tie = False
         
-        # Eliminate player
         self.game_state.players[eliminated].alive = False
         self.game_state.last_eliminated = [eliminated]
         
@@ -604,36 +576,27 @@ class MafiaGameEngine:
         """Run a complete game"""
         self.initialize_game()
         
-        # Send initial role prompts to all players
         for player_id, player in self.game_state.players.items():
             logger.info(f"{player_id} assigned role: {player.role.value}")
         
-        # Game loop
         while True:
-            # Night phase
             night_results = await self.run_night_phase()
             
-            # Check if game ended
             if winner := self.check_win_condition():
                 self.game_state.phase = Phase.GAME_OVER
                 break
             
-            # Discussion phase
             await self.run_discussion_phase()
             
-            # Voting phase
             voting_results = await self.run_voting_phase()
             
-            # Check if game ended
             if winner := self.check_win_condition():
                 self.game_state.phase = Phase.GAME_OVER
                 break
             
-            # Advance round
             self.game_state.round_number += 1
             self.game_state.phase = Phase.NIGHT
         
-        # Game over
         game_result = {
             "winner": winner,
             "rounds_played": self.game_state.round_number,
