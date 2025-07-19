@@ -40,7 +40,6 @@ class ClaudeAdapter(ModelAdapter):
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from Claude"""
         
-        # Build appropriate prompt
         if phase == Phase.NIGHT:
             prompt = PromptBuilder.build_night_action_prompt(
                 player_id, 
@@ -57,9 +56,7 @@ class ClaudeAdapter(ModelAdapter):
         else:
             return {"action": "wait"}
         
-        # Get conversation history for this player
         if player_id not in self.conversation_history:
-            # Initialize with role prompt
             self.conversation_history[player_id] = [{
                 "role": "user",
                 "content": PromptBuilder.build_role_prompt(
@@ -82,16 +79,13 @@ class ClaudeAdapter(ModelAdapter):
             
             response_text = message.content[0].text
             
-            # Extract JSON from response
             action = self._extract_json(response_text)
             
-            # Store in history
             self.conversation_history[player_id].extend([
                 {"role": "user", "content": prompt},
                 {"role": "assistant", "content": response_text}
             ])
             
-            # Keep history manageable
             if len(self.conversation_history[player_id]) > 20:
                 self.conversation_history[player_id] = self.conversation_history[player_id][-20:]
             
@@ -99,7 +93,6 @@ class ClaudeAdapter(ModelAdapter):
             
         except Exception as e:
             logger.error(f"Claude API error for {player_id}: {e}")
-            # Return a safe default action
             if phase == Phase.VOTING and legal_actions:
                 targets = legal_actions[0].get("targets", [])
                 if targets:
@@ -122,8 +115,8 @@ class ClaudeAdapter(ModelAdapter):
         try:
             message = await self.client.messages.create(
                 model=self.config.model_name,
-                max_tokens=150,  # Keep discussion concise
-                temperature=0.8,  # Slightly higher for variety
+                max_tokens=150,  
+                temperature=0.8,  
                 messages=[
                     {"role": "user", "content": prompt}
                 ],
@@ -138,7 +131,6 @@ class ClaudeAdapter(ModelAdapter):
     
     def _extract_json(self, text: str) -> Dict[str, Any]:
         """Extract JSON from model response"""
-        # Try to find JSON in the response
         json_match = re.search(r'\{[^}]+\}', text)
         if json_match:
             try:
@@ -146,7 +138,6 @@ class ClaudeAdapter(ModelAdapter):
             except json.JSONDecodeError:
                 pass
         
-        # Fallback parsing for common patterns
         if "kill" in text.lower():
             target_match = re.search(r'Player\d+', text)
             if target_match:
@@ -160,7 +151,6 @@ class ClaudeAdapter(ModelAdapter):
     
     def _get_voting_history(self, player_id: str) -> List[Dict[str, str]]:
         """Get voting history for this player"""
-        # This would be populated from game engine
         return []
 
 class GPT4Adapter(ModelAdapter):
@@ -179,7 +169,6 @@ class GPT4Adapter(ModelAdapter):
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from GPT-4"""
         
-        # Build appropriate prompt
         if phase == Phase.NIGHT:
             prompt = PromptBuilder.build_night_action_prompt(
                 player_id, 
@@ -195,7 +184,6 @@ class GPT4Adapter(ModelAdapter):
         else:
             return {"action": "wait"}
         
-        # Build messages
         messages = [
             {
                 "role": "system",
@@ -216,7 +204,7 @@ Be strategic and play to win for your team."""
                 messages=messages,
                 temperature=self.config.temperature,
                 max_tokens=self.config.max_tokens,
-                response_format={ "type": "json_object" }  # Force JSON response
+                response_format={ "type": "json_object" }  
             )
             
             response_text = response.choices[0].message.content
@@ -226,7 +214,6 @@ Be strategic and play to win for your team."""
             
         except Exception as e:
             logger.error(f"GPT-4 API error for {player_id}: {e}")
-            # Return safe default
             if phase == Phase.VOTING and legal_actions:
                 targets = legal_actions[0].get("targets", [])
                 if targets:
@@ -301,7 +288,6 @@ class GeminiAdapter(ModelAdapter):
         else:
             return {"action": "wait"}
         
-        # Add JSON instruction
         full_prompt = f"""{prompt}
 
 IMPORTANT: Respond ONLY with valid JSON, no other text."""
@@ -507,7 +493,6 @@ class MixedModelAdapter(ModelAdapter):
         else:
             return self.adapters[0]
 
-# Factory function to create adapters
 def create_model_adapter(model_type: str, config: ModelConfig) -> ModelAdapter:
     """Factory function to create appropriate model adapter"""
     
@@ -524,13 +509,11 @@ def create_model_adapter(model_type: str, config: ModelConfig) -> ModelAdapter:
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
-# Example configuration loader
 def load_model_configs() -> Dict[str, ModelConfig]:
     """Load model configurations from environment or config file"""
     
     configs = {}
     
-    # Claude configuration
     if claude_key := os.getenv("ANTHROPIC_API_KEY"):
         configs["claude-4-opus"] = ModelConfig(
             model_name="claude-opus-4-20250514",
@@ -559,8 +542,10 @@ def load_model_configs() -> Dict[str, ModelConfig]:
             temperature=0.7,
             max_tokens=500
         )
-    
-    # Gemini configuration
+  
+
+### i am gonna add ts later bc gemini is being a pain in the ass rn and ollama is annoying me  
+# Gemini configuration
 #    if gemini_key := os.getenv("GOOGLE_API_KEY"):
 #        configs["gemini-pro"] = ModelConfig(
 #            model_name="models/chat-bison-001",
@@ -569,7 +554,7 @@ def load_model_configs() -> Dict[str, ModelConfig]:
 #            max_tokens=500
 #        )
     
-    # Local model configuration (no API key needed)
+# Local model configuration (no API key needed)
 #    configs["llama2"] = ModelConfig(
 #        model_name="llama2",
 #        api_key="",
