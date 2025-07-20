@@ -46,7 +46,7 @@ to discuss what you would like to change.
 
 # Updates
 
-## v0.0.1 7-20-2025 12:17am patch1 (not complete)
+## v0.0.1 7-20-2025 12:17am patch1
 added a streamlit app that can be ran with the command
 ```bash
 streamlit run app.py
