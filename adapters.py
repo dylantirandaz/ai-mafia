@@ -546,13 +546,13 @@ def load_model_configs() -> Dict[str, ModelConfig]:
 
 ### i am gonna add ts later bc gemini is being a pain in the ass rn and ollama is annoying me  
 # Gemini configuration
-#    if gemini_key := os.getenv("GOOGLE_API_KEY"):
-#        configs["gemini-pro"] = ModelConfig(
-#            model_name="models/chat-bison-001",
-#            api_key=gemini_key,
-#            temperature=0.7,
-#            max_tokens=500
-#        )
+    if gemini_key := os.getenv("GOOGLE_API_KEY"):
+        configs["gemini-pro"] = ModelConfig(
+            model_name="gemini-2.5-pro",
+            api_key=gemini_key,
+            temperature=0.7,
+            max_tokens=500
+        )
     
 # Local model configuration (no API key needed)
 #    configs["llama2"] = ModelConfig(

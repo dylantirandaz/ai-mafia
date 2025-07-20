@@ -41,3 +41,14 @@ to discuss what you would like to change.
 ## License
 
 [MIT](https://choosealicense.com/licenses/mit/)
+
+
+
+# Updates
+
+## v0.0.1 7-20-2025 12:17am patch1
+added a streamlit app that can be ran with the command
+```bash
+streamlit run app.py
+```
+and I also added the gemini model back but there is an issue with it that i will fix in next patch
