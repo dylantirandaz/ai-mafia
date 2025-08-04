@@ -571,7 +571,8 @@ class MafiaGameEngine:
             "event_type": event_type,
             "data": data
         })
-    
+
+
     async def run_game(self) -> Dict[str, Any]:
         """Run a complete game"""
         self.initialize_game()

@@ -12,8 +12,11 @@ from dataclasses import dataclass
 import logging
 from engine import *
 from evals import *
+from prompt_engine import PromptEngine, MemoryStore
 
 logger = logging.getLogger(__name__)
+memory = MemoryStore()
+prompt_engine = PromptEngine(memory)
 
 @dataclass
 class ModelConfig:
@@ -40,21 +43,19 @@ class ClaudeAdapter(ModelAdapter):
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from Claude"""
         
-        if phase == Phase.NIGHT:
-            prompt = PromptBuilder.build_night_action_prompt(
-                player_id, 
-                game_state.players[player_id].role, 
-                game_state
-            )
-        elif phase == Phase.VOTING:
-            prompt = PromptBuilder.build_voting_prompt(
-                player_id,
-                game_state.players[player_id].role,
-                game_state,
-                self._get_voting_history(player_id)
-            )
-        else:
-            return {"action": "wait"}
+        memory.add_event(
+            f"Round {game_state.round_number} phase {phase.value}, "
+            f"alive: {game_state.get_alive_players()}"
+        )
+
+        prompt = prompt_engine.build_action_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            phase=phase.value,
+            game_state={"round_number": game_state.round_number,
+                "get_alive_players": game_state.get_alive_players},
+            legal_actions=legal_actions
+        )
         
         if player_id not in self.conversation_history:
             self.conversation_history[player_id] = [{
@@ -105,11 +106,12 @@ class ClaudeAdapter(ModelAdapter):
                                  discussion_context: List[Dict[str, Any]]) -> str:
         """Generate discussion message with Claude"""
         
-        prompt = PromptBuilder.build_discussion_prompt(
-            player_id,
-            game_state.players[player_id].role,
-            game_state,
-            model_type="claude"
+        prompt = prompt_engine.build_chat_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            game_state={"round_number": game_state.round_number,
+                        "get_alive_players": game_state.get_alive_players},
+            discussion_history=game_state.discussion_history
         )
         
         try:
@@ -168,21 +170,20 @@ class GPT4Adapter(ModelAdapter):
                         phase: Phase,
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from GPT-4"""
-        
-        if phase == Phase.NIGHT:
-            prompt = PromptBuilder.build_night_action_prompt(
-                player_id, 
-                game_state.players[player_id].role, 
-                game_state
-            )
-        elif phase == Phase.VOTING:
-            prompt = PromptBuilder.build_voting_prompt(
-                player_id,
-                game_state.players[player_id].role,
-                game_state
-            )
-        else:
-            return {"action": "wait"}
+
+        memory.add_event(
+            f"Round {game_state.round_number} phase {phase.value}, "
+            f"alive: {game_state.get_alive_players()}"
+        )
+
+        prompt = prompt_engine.build_action_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            phase=phase.value,
+            game_state={"round_number": game_state.round_number,
+                "get_alive_players": game_state.get_alive_players},
+            legal_actions=legal_actions
+        )
         
         messages = [
             {
@@ -226,11 +227,12 @@ Be strategic and play to win for your team."""
                                  discussion_context: List[Dict[str, Any]]) -> str:
         """Generate discussion message with GPT-4"""
         
-        prompt = PromptBuilder.build_discussion_prompt(
-            player_id,
-            game_state.players[player_id].role,
-            game_state,
-            model_type="gpt4"
+        prompt = prompt_engine.build_chat_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            game_state={"round_number": game_state.round_number,
+                        "get_alive_players": game_state.get_alive_players},
+            discussion_history=game_state.discussion_history
         )
         
         messages = [
@@ -273,20 +275,19 @@ class GeminiAdapter(ModelAdapter):
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from Gemini"""
         
-        if phase == Phase.NIGHT:
-            prompt = PromptBuilder.build_night_action_prompt(
-                player_id, 
-                game_state.players[player_id].role, 
-                game_state
-            )
-        elif phase == Phase.VOTING:
-            prompt = PromptBuilder.build_voting_prompt(
-                player_id,
-                game_state.players[player_id].role,
-                game_state
-            )
-        else:
-            return {"action": "wait"}
+        memory.add_event(
+            f"Round {game_state.round_number} phase {phase.value}, "
+            f"alive: {game_state.get_alive_players()}"
+        )
+
+        prompt = prompt_engine.build_action_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            phase=phase.value,
+            game_state={"round_number": game_state.round_number,
+                "get_alive_players": game_state.get_alive_players},
+            legal_actions=legal_actions
+        )
         
         full_prompt = f"""{prompt}
 
@@ -321,10 +322,12 @@ IMPORTANT: Respond ONLY with valid JSON, no other text."""
                                  discussion_context: List[Dict[str, Any]]) -> str:
         """Generate discussion message with Gemini"""
         
-        prompt = PromptBuilder.build_discussion_prompt(
-            player_id,
-            game_state.players[player_id].role,
-            game_state
+        prompt = prompt_engine.build_chat_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            game_state={"round_number": game_state.round_number,
+                        "get_alive_players": game_state.get_alive_players},
+            discussion_history=game_state.discussion_history
         )
         
         try:
@@ -367,20 +370,19 @@ class LocalLLMAdapter(ModelAdapter):
                         legal_actions: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Get action from local LLM"""
         
-        if phase == Phase.NIGHT:
-            prompt = PromptBuilder.build_night_action_prompt(
-                player_id, 
-                game_state.players[player_id].role, 
-                game_state
-            )
-        elif phase == Phase.VOTING:
-            prompt = PromptBuilder.build_voting_prompt(
-                player_id,
-                game_state.players[player_id].role,
-                game_state
-            )
-        else:
-            return {"action": "wait"}
+        memory.add_event(
+            f"Round {game_state.round_number} phase {phase.value}, "
+            f"alive: {game_state.get_alive_players()}"
+        )
+
+        prompt = prompt_engine.build_action_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            phase=phase.value,
+            game_state={"round_number": game_state.round_number,
+                "get_alive_players": game_state.get_alive_players},
+            legal_actions=legal_actions
+        )
         
         payload = {
             "model": self.config.model_name,
@@ -414,10 +416,12 @@ class LocalLLMAdapter(ModelAdapter):
                                  discussion_context: List[Dict[str, Any]]) -> str:
         """Generate discussion with local LLM"""
         
-        prompt = PromptBuilder.build_discussion_prompt(
-            player_id,
-            game_state.players[player_id].role,
-            game_state
+        prompt = prompt_engine.build_chat_prompt(
+            player_id=player_id,
+            role=game_state.players[player_id].role.value,
+            game_state={"round_number": game_state.round_number,
+                        "get_alive_players": game_state.get_alive_players},
+            discussion_history=game_state.discussion_history
         )
         
         payload = {
